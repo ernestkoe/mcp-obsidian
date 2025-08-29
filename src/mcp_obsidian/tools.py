@@ -489,11 +489,10 @@ class PeriodicNotesToolHandler(ToolHandler):
                         "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
                         "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"]
                     },
-                    "type": {
-                        "type": "string",
-                        "description": "The type of data to get ('content' or 'metadata'). 'content' returns just the content in Markdown format. 'metadata' includes note metadata (including paths, tags, etc.) and the content.",
-                        "default": "content",
-                        "enum": ["content", "metadata"]
+                    "as_json": {
+                        "type": "boolean",
+                        "description": "Whether to return JSON format with metadata (default: false)",
+                        "default": False
                     }
                 },
                 "required": ["period"]
@@ -509,20 +508,25 @@ class PeriodicNotesToolHandler(ToolHandler):
         if period not in valid_periods:
             raise RuntimeError(f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}")
         
-        type = args["type"] if "type" in args else "content"
-        valid_types = ["content", "metadata"]
-        if type not in valid_types:
-            raise RuntimeError(f"Invalid type: {type}. Must be one of: {', '.join(valid_types)}")
-
+        as_json = args.get("as_json", False)
+        
         api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        content = api.get_periodic_note(period,type)
-
-        return [
-            TextContent(
-                type="text",
-                text=content
-            )
-        ]
+        content = api.get_periodic_note(period, as_json)
+        
+        if as_json:
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(content, indent=2)
+                )
+            ]
+        else:
+            return [
+                TextContent(
+                    type="text",
+                    text=content
+                )
+            ]
         
 class RecentPeriodicNotesToolHandler(ToolHandler):
     def __init__(self):
@@ -825,5 +829,205 @@ class DeleteActiveNoteToolHandler(ToolHandler):
             TextContent(
                 type="text",
                 text="Successfully deleted active note"
+            )
+        ]
+
+class AppendToPeriodicToolHandler(ToolHandler):
+    def __init__(self):
+        super().__init__("obsidian_post_periodic")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Append content to the current periodic note.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
+                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"]
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to append to the periodic note"
+                    }
+                },
+                "required": ["period", "content"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        if "period" not in args or "content" not in args:
+            raise RuntimeError("period and content arguments required")
+
+        period = args["period"]
+        valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
+        if period not in valid_periods:
+            raise RuntimeError(f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        api.append_to_periodic(period, args["content"])
+
+        return [
+            TextContent(
+                type="text",
+                text=f"Successfully appended content to {period} note"
+            )
+        ]
+
+class ReplacePeriodicNoteToolHandler(ToolHandler):
+    def __init__(self):
+        super().__init__("obsidian_put_periodic")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Replace entire content of the current periodic note.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
+                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"]
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "New content for the periodic note"
+                    }
+                },
+                "required": ["period", "content"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        if "period" not in args or "content" not in args:
+            raise RuntimeError("period and content arguments required")
+
+        period = args["period"]
+        valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
+        if period not in valid_periods:
+            raise RuntimeError(f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        api.replace_periodic_note(period, args["content"])
+
+        return [
+            TextContent(
+                type="text",
+                text=f"Successfully replaced content of {period} note"
+            )
+        ]
+
+class PatchPeriodicNoteToolHandler(ToolHandler):
+    def __init__(self):
+        super().__init__("obsidian_patch_periodic")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Insert content into periodic note relative to a heading, block reference, or frontmatter field.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
+                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"]
+                    },
+                    "operation": {
+                        "type": "string",
+                        "description": "Operation to perform (append, prepend, or replace)",
+                        "enum": ["append", "prepend", "replace"]
+                    },
+                    "target_type": {
+                        "type": "string",
+                        "description": "Type of target to patch",
+                        "enum": ["heading", "block", "frontmatter"]
+                    },
+                    "target": {
+                        "type": "string",
+                        "description": "Target identifier (heading path, block reference, or frontmatter field)"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to insert"
+                    }
+                },
+                "required": ["period", "operation", "target_type", "target", "content"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        if not all(k in args for k in ["period", "operation", "target_type", "target", "content"]):
+            raise RuntimeError("period, operation, target_type, target and content arguments required")
+
+        period = args["period"]
+        valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
+        if period not in valid_periods:
+            raise RuntimeError(f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        api.patch_periodic_note(
+            period,
+            args.get("operation", ""),
+            args.get("target_type", ""),
+            args.get("target", ""),
+            args.get("content", "")
+        )
+
+        return [
+            TextContent(
+                type="text",
+                text=f"Successfully patched content in {period} note"
+            )
+        ]
+
+class DeletePeriodicNoteToolHandler(ToolHandler):
+    def __init__(self):
+        super().__init__("obsidian_delete_periodic")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Delete the current periodic note. Use with caution.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
+                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"]
+                    },
+                    "confirm": {
+                        "type": "boolean",
+                        "description": "Confirmation to delete the periodic note (must be true)",
+                        "default": False
+                    }
+                },
+                "required": ["period", "confirm"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        if "period" not in args:
+            raise RuntimeError("period argument required")
+        
+        if not args.get("confirm", False):
+            raise RuntimeError("confirm must be set to true to delete the periodic note")
+
+        period = args["period"]
+        valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
+        if period not in valid_periods:
+            raise RuntimeError(f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        api.delete_periodic_note(period)
+
+        return [
+            TextContent(
+                type="text",
+                text=f"Successfully deleted {period} note"
             )
         ]

@@ -194,27 +194,27 @@ class Obsidian():
 
         return self._safe_call(call_fn)
     
-    def get_periodic_note(self, period: str, type: str = "content") -> Any:
+    def get_periodic_note(self, period: str, as_json: bool = False) -> Any:
         """Get current periodic note for the specified period.
         
         Args:
             period: The period type (daily, weekly, monthly, quarterly, yearly)
-            type: Type of the data to get ('content' or 'metadata'). 
-                'content' returns just the content in Markdown format. 
-                'metadata' includes note metadata (including paths, tags, etc.) and the content.. 
+            as_json: Whether to return JSON format with metadata (default: False)
             
         Returns:
-            Content of the periodic note
+            Content of the periodic note (text or JSON)
         """
         url = f"{self.get_base_url()}/periodic/{period}/"
         
         def call_fn():
             headers = self._get_headers()
-            if type == "metadata":
+            if as_json:
                 headers['Accept'] = 'application/vnd.olrapi.note+json'
             response = requests.get(url, headers=headers, verify=self.verify_ssl, timeout=self.timeout)
             response.raise_for_status()
             
+            if as_json:
+                return response.json()
             return response.text
 
         return self._safe_call(call_fn)
@@ -397,6 +397,103 @@ class Obsidian():
             None on success
         """
         url = f"{self.get_base_url()}/active/"
+        
+        def call_fn():
+            response = requests.delete(url, headers=self._get_headers(), verify=self.verify_ssl, timeout=self.timeout)
+            response.raise_for_status()
+            return None
+
+        return self._safe_call(call_fn)
+    
+    def append_to_periodic(self, period: str, content: str) -> Any:
+        """Append content to the current periodic note.
+        
+        Args:
+            period: The period type (daily, weekly, monthly, quarterly, yearly)
+            content: Content to append to the periodic note
+            
+        Returns:
+            None on success
+        """
+        url = f"{self.get_base_url()}/periodic/{period}/"
+        
+        def call_fn():
+            response = requests.post(
+                url,
+                headers=self._get_headers() | {'Content-Type': 'text/markdown'},
+                data=content,
+                verify=self.verify_ssl,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            return None
+
+        return self._safe_call(call_fn)
+    
+    def replace_periodic_note(self, period: str, content: str) -> Any:
+        """Replace entire content of the current periodic note.
+        
+        Args:
+            period: The period type (daily, weekly, monthly, quarterly, yearly)
+            content: New content for the periodic note
+            
+        Returns:
+            None on success
+        """
+        url = f"{self.get_base_url()}/periodic/{period}/"
+        
+        def call_fn():
+            response = requests.put(
+                url,
+                headers=self._get_headers() | {'Content-Type': 'text/markdown'},
+                data=content,
+                verify=self.verify_ssl,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            return None
+
+        return self._safe_call(call_fn)
+    
+    def patch_periodic_note(self, period: str, operation: str, target_type: str, target: str, content: str) -> Any:
+        """Insert/replace content in periodic note relative to a target.
+        
+        Args:
+            period: The period type (daily, weekly, monthly, quarterly, yearly)
+            operation: Operation to perform (append, prepend, or replace)
+            target_type: Type of target (heading, block, or frontmatter)
+            target: Target identifier
+            content: Content to insert
+            
+        Returns:
+            None on success
+        """
+        url = f"{self.get_base_url()}/periodic/{period}/"
+        
+        headers = self._get_headers() | {
+            'Content-Type': 'text/markdown',
+            'Operation': operation,
+            'Target-Type': target_type,
+            'Target': urllib.parse.quote(target)
+        }
+        
+        def call_fn():
+            response = requests.patch(url, headers=headers, data=content, verify=self.verify_ssl, timeout=self.timeout)
+            response.raise_for_status()
+            return None
+
+        return self._safe_call(call_fn)
+    
+    def delete_periodic_note(self, period: str) -> Any:
+        """Delete the current periodic note.
+        
+        Args:
+            period: The period type (daily, weekly, monthly, quarterly, yearly)
+            
+        Returns:
+            None on success
+        """
+        url = f"{self.get_base_url()}/periodic/{period}/"
         
         def call_fn():
             response = requests.delete(url, headers=self._get_headers(), verify=self.verify_ssl, timeout=self.timeout)
