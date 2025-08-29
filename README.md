@@ -75,6 +75,35 @@ It's good to first instruct Claude to use Obsidian. Then it will always call the
 - Open the file 'Projects/2024/planning.md' in a new pane
 - Run the command to create a new note from my meeting template
 
+## Path Encoding & Filename Support
+
+The server includes robust path encoding that handles filenames with spaces, special characters, Unicode, and emojis. All file operations work seamlessly with complex filenames.
+
+### Supported Filename Types
+
+- **Spaces**: `Projects/2024 Q1/meeting notes.md`
+- **Unicode characters**: `Área/configuração/São Paulo.md`  
+- **Special characters**: `Research (2024)/data #1 & analysis + results.md`
+- **Emojis**: `Projects 🚀/📘 documentation/notes ⭐.md`
+- **Mixed types**: `Área (Special) & More + [Data] = Value #1 🚀.md`
+
+### Technical Features
+
+- **Idempotent encoding**: Prevents double-encoding of already encoded paths
+- **Unicode normalization**: Ensures cross-platform filename consistency  
+- **RFC 3986 compliant**: Proper URL encoding while preserving directory structure
+- **Backward compatible**: No changes to existing simple filename behavior
+
+### Example Operations
+
+```python
+# All these filename types work with any operation:
+obsidian_get_file_contents("Projects/Meeting Notes 📝.md")
+obsidian_append_content("Área/configuração.md", "New content")
+obsidian_list_files_in_dir("Special (Folder) & More")
+obsidian_patch_content("Research #1/data + analysis.md", ...)
+```
+
 ## Configuration
 
 ### Obsidian REST API Key
