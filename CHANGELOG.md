@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.3.0 (2025-12-29)
+
+### Bug Fixes
+
+- Remove build_command from semantic-release config
+  ([`ec40b32`](https://github.com/ernestkoe/mcp-obsidian/commit/ec40b32eb0bcaaca46ad48ce042122401e8feab1))
+
+The semantic-release action runs in its own container without uv. Since we're not publishing to
+  PyPI, we don't need to build.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+- Remove PyPI publishing from release workflow
+  ([`203568e`](https://github.com/ernestkoe/mcp-obsidian/commit/203568eb5f9b272196e11fc0598b7fb6a5ed4ff0))
+
+Not publishing to PyPI, only GitHub Releases.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+### Features
+
+- Add semantic-release for automated versioning
+  ([`63d7c01`](https://github.com/ernestkoe/mcp-obsidian/commit/63d7c01252d8b655da6e5de8eda76830b5950969))
+
+- Add python-semantic-release to dev dependencies - Configure semantic-release in pyproject.toml -
+  Create GitHub Actions release workflow with PyPI publishing - Add CHANGELOG.md with version
+  history - Add __version__ to package __init__.py - Update CI to only run on pull requests (release
+  workflow handles main)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+
 ## [0.2.1] - 2025-12-29
 
 ### Added
