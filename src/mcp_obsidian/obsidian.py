@@ -353,7 +353,37 @@ class Obsidian():
             return response.json()
 
         return self._safe_call(call_fn)
-    
+
+    def dataview_query(self, dql_query: str) -> Any:
+        """Execute a Dataview DQL query against the vault.
+
+        Args:
+            dql_query: The Dataview query string (e.g., "TABLE title, status FROM #tag")
+
+        Returns:
+            Query results as JSON
+
+        Note:
+            Requires the Dataview plugin to be installed in Obsidian.
+        """
+        url = f"{self.get_base_url()}/search/"
+        headers = self._get_headers() | {
+            'Content-Type': 'application/vnd.olrapi.dataview.dql+txt'
+        }
+
+        def call_fn():
+            response = requests.post(
+                url,
+                headers=headers,
+                data=dql_query.encode('utf-8'),
+                verify=self.verify_ssl,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            return response.json()
+
+        return self._safe_call(call_fn)
+
     def get_active_note(self, as_json: bool = False) -> Any:
         """Get content of the currently active note in Obsidian.
         

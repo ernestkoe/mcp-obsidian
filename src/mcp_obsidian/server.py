@@ -4,7 +4,16 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
 import os
+import sys
 from dotenv import load_dotenv
+
+# UTF-8 fix for Windows MCP STDIO communication
+if sys.platform == "win32":
+    if not os.environ.get('PYTHONIOENCODING'):
+        sys.stdin.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+
 from mcp.server import Server
 from mcp.types import (
     Tool,
@@ -54,6 +63,7 @@ add_tool_handler(tools.BatchGetFileContentsToolHandler())
 add_tool_handler(tools.PeriodicNotesToolHandler())
 add_tool_handler(tools.RecentPeriodicNotesToolHandler())
 add_tool_handler(tools.RecentChangesToolHandler())
+add_tool_handler(tools.DataviewQueryToolHandler())
 add_tool_handler(tools.GetActiveNoteToolHandler())
 add_tool_handler(tools.AppendToActiveToolHandler())
 add_tool_handler(tools.ReplaceActiveNoteToolHandler())

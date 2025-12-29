@@ -51,7 +51,7 @@ class ListFilesInVaultToolHandler(ToolHandler):
         return [
             TextContent(
                 type="text",
-                text=json.dumps(files, indent=2)
+                text=json.dumps(files, indent=2, ensure_ascii=False)
             )
         ]
     
@@ -87,7 +87,7 @@ class ListFilesInDirToolHandler(ToolHandler):
         return [
             TextContent(
                 type="text",
-                text=json.dumps(files, indent=2)
+                text=json.dumps(files, indent=2, ensure_ascii=False)
             )
         ]
     
@@ -123,7 +123,7 @@ class GetFileContentsToolHandler(ToolHandler):
         return [
             TextContent(
                 type="text",
-                text=json.dumps(content, indent=2)
+                text=json.dumps(content, indent=2, ensure_ascii=False)
             )
         ]
     
@@ -185,7 +185,7 @@ class SearchToolHandler(ToolHandler):
         return [
             TextContent(
                 type="text",
-                text=json.dumps(formatted_results, indent=2)
+                text=json.dumps(formatted_results, indent=2, ensure_ascii=False)
             )
         ]
     
@@ -430,7 +430,7 @@ class ComplexSearchToolHandler(ToolHandler):
        return [
            TextContent(
                type="text",
-               text=json.dumps(results, indent=2)
+               text=json.dumps(results, indent=2, ensure_ascii=False)
            )
        ]
 
@@ -517,7 +517,7 @@ class PeriodicNotesToolHandler(ToolHandler):
             return [
                 TextContent(
                     type="text",
-                    text=json.dumps(content, indent=2)
+                    text=json.dumps(content, indent=2, ensure_ascii=False)
                 )
             ]
         else:
@@ -584,7 +584,7 @@ class RecentPeriodicNotesToolHandler(ToolHandler):
         return [
             TextContent(
                 type="text",
-                text=json.dumps(results, indent=2)
+                text=json.dumps(results, indent=2, ensure_ascii=False)
             )
         ]
         
@@ -631,9 +631,49 @@ class RecentChangesToolHandler(ToolHandler):
         return [
             TextContent(
                 type="text",
-                text=json.dumps(results, indent=2)
+                text=json.dumps(results, indent=2, ensure_ascii=False)
             )
         ]
+
+
+class DataviewQueryToolHandler(ToolHandler):
+    def __init__(self):
+        super().__init__("obsidian_dataview_query")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Execute a Dataview DQL query against the vault. Requires the Dataview plugin.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The Dataview query string (e.g., 'TABLE title, status FROM #tag'). Note: Does not support TABLE WITHOUT ID queries."
+                    }
+                },
+                "required": ["query"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        if "query" not in args:
+            raise RuntimeError("query argument missing")
+
+        query = args["query"]
+        if not isinstance(query, str):
+            raise RuntimeError("query must be a string")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        results = api.dataview_query(query)
+
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(results, indent=2, ensure_ascii=False)
+            )
+        ]
+
 
 class GetActiveNoteToolHandler(ToolHandler):
     def __init__(self):
@@ -665,7 +705,7 @@ class GetActiveNoteToolHandler(ToolHandler):
             return [
                 TextContent(
                     type="text",
-                    text=json.dumps(content, indent=2)
+                    text=json.dumps(content, indent=2, ensure_ascii=False)
                 )
             ]
         else:

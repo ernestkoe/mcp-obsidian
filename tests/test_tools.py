@@ -312,6 +312,30 @@ class TestRecentChangesToolHandler:
         assert "recent.md" in result[0].text
 
 
+class TestDataviewQueryToolHandler:
+    """Tests for the Dataview query tool."""
+
+    def test_run_tool(self, mock_responses, base_url):
+        mock_responses.add(
+            responses.POST,
+            f"{base_url}/search/",
+            json=[{"filename": "note.md", "title": "My Note"}],
+            status=200,
+        )
+
+        handler = tools.DataviewQueryToolHandler()
+        result = handler.run_tool({"query": "TABLE title FROM #tag"})
+
+        assert len(result) == 1
+        assert "My Note" in result[0].text
+
+    def test_missing_query_raises_error(self):
+        handler = tools.DataviewQueryToolHandler()
+
+        with pytest.raises(RuntimeError, match="query"):
+            handler.run_tool({})
+
+
 # ============================================================================
 # Active Note Tools (from PR #77)
 # ============================================================================
