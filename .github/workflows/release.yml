@@ -39,7 +39,6 @@ jobs:
     runs-on: ubuntu-latest
     concurrency: release
     permissions:
-      id-token: write
       contents: write
 
     steps:
@@ -63,12 +62,6 @@ jobs:
         uses: python-semantic-release/python-semantic-release@v9.21.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to PyPI
-        if: steps.release.outputs.released == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Publish to GitHub Releases
         if: steps.release.outputs.released == 'true'
