@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from mcp.types import (
     Tool,
+    ToolAnnotations,
     TextContent,
     ImageContent,
     EmbeddedResource,
@@ -41,6 +42,10 @@ class ListFilesInVaultToolHandler(ToolHandler):
                 "properties": {},
                 "required": []
             },
+            annotations=ToolAnnotations(
+                title="List Files in Vault",
+                readOnlyHint=True,
+            ),
         )
 
     def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
@@ -72,7 +77,11 @@ class ListFilesInDirToolHandler(ToolHandler):
                     },
                 },
                 "required": ["dirpath"]
-            }
+            },
+            annotations=ToolAnnotations(
+                title="List Files in Directory",
+                readOnlyHint=True,
+            ),
         )
 
     def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
@@ -109,7 +118,11 @@ class GetFileContentsToolHandler(ToolHandler):
                     },
                 },
                 "required": ["filepath"]
-            }
+            },
+            annotations=ToolAnnotations(
+                title="Get File Contents",
+                readOnlyHint=True,
+            ),
         )
 
     def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
@@ -211,7 +224,11 @@ class AppendContentToolHandler(ToolHandler):
                    }
                },
                "required": ["filepath", "content"]
-           }
+           },
+           annotations=ToolAnnotations(
+               title="Append Content",
+               destructiveHint=True,
+           ),
        )
 
    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
@@ -350,13 +367,17 @@ class DeleteFileToolHandler(ToolHandler):
                    }
                },
                "required": ["filepath", "confirm"]
-           }
+           },
+           annotations=ToolAnnotations(
+               title="Delete File",
+               destructiveHint=True,
+           ),
        )
 
    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
        if "filepath" not in args:
            raise RuntimeError("filepath argument missing in arguments")
-       
+
        if not args.get("confirm", False):
            raise RuntimeError("confirm must be set to true to delete a file")
 
