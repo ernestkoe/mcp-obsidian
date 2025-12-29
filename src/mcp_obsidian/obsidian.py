@@ -40,7 +40,17 @@ class Obsidian:
         try:
             return f()
         except requests.HTTPError as e:
-            error_data = e.response.json() if e.response.content else {}
+            # Try to parse JSON error response, fall back to raw text
+            error_data = {}
+            if e.response.content:
+                try:
+                    error_data = e.response.json()
+                except ValueError:
+                    # Response is not JSON (e.g., plain text "Not Found")
+                    raw_text = e.response.text.strip()
+                    raise Exception(
+                        f"HTTP {e.response.status_code}: {raw_text or 'Unknown error'}"
+                    )
             code = error_data.get("errorCode", -1)
             message = error_data.get("message", "<unknown>")
             raise Exception(f"Error {code}: {message}")

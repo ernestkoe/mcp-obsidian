@@ -213,11 +213,7 @@ class TestObsidianErrorHandling:
         assert "File not found" in str(exc_info.value)
 
     def test_http_error_without_json_response(self, obsidian_client, base_url, mock_responses):
-        """Note: Current implementation has a bug - non-JSON error responses cause JSONDecodeError.
-        This test documents the current behavior. TODO: Fix error handling to gracefully handle non-JSON responses.
-        """
-        import json
-
+        """Test that non-JSON error responses are handled gracefully."""
         mock_responses.add(
             responses.GET,
             f"{base_url}/vault/error.md",
@@ -225,9 +221,11 @@ class TestObsidianErrorHandling:
             status=500,
         )
 
-        # Current buggy behavior: raises JSONDecodeError instead of a proper error message
-        with pytest.raises(json.JSONDecodeError):
+        with pytest.raises(Exception) as exc_info:
             obsidian_client.get_file_contents("error.md")
+
+        assert "HTTP 500" in str(exc_info.value)
+        assert "Internal Server Error" in str(exc_info.value)
 
     def test_connection_error(self, api_key):
         client = Obsidian(api_key=api_key, host="nonexistent.host", port=9999)
