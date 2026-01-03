@@ -45,7 +45,6 @@ class ListFilesInVaultToolHandler(ToolHandler):
             description="Lists all files and directories in the root directory of your Obsidian vault.",
             inputSchema={"type": "object", "properties": {}, "required": []},
             annotations=ToolAnnotations(
-                title="List Files in Vault",
                 readOnlyHint=True,
             ),
         )
@@ -83,7 +82,6 @@ class ListFilesInDirToolHandler(ToolHandler):
                 "required": ["dirpath"],
             },
             annotations=ToolAnnotations(
-                title="List Files in Directory",
                 readOnlyHint=True,
             ),
         )
@@ -125,7 +123,6 @@ class GetFileContentsToolHandler(ToolHandler):
                 "required": ["filepath"],
             },
             annotations=ToolAnnotations(
-                title="Get File Contents",
                 readOnlyHint=True,
             ),
         )
@@ -249,7 +246,6 @@ class AppendContentToolHandler(ToolHandler):
                 "required": ["filepath", "content"],
             },
             annotations=ToolAnnotations(
-                title="Append Content",
                 destructiveHint=True,
             ),
         )
@@ -422,7 +418,6 @@ class DeleteFileToolHandler(ToolHandler):
                 "required": ["filepath", "confirm"],
             },
             annotations=ToolAnnotations(
-                title="Delete File",
                 destructiveHint=True,
             ),
         )
@@ -483,11 +478,7 @@ class ComplexSearchToolHandler(ToolHandler):
                 "properties": {
                     "query": {
                         "type": "object",
-                        "description": 'JsonLogic query object. ALWAYS follow query syntax in examples. \
-                            Example 1: {"glob": ["*.md", {"var": "path"}]} matches all markdown files \
-                            Example 2: {"and": [{"glob": ["*.md", {"var": "path"}]}, {"regexp": [".*1221.*", {"var": "content"}]}]} matches all markdown files with 1221 substring inside them \
-                            Example 3: {"and": [{"glob": ["*.md", {"var": "path"}]}, {"regexp": [".*Work.*", {"var": "path"}]}, {"regexp": ["Keaton", {"var": "content"}]}]} matches all markdown files in Work folder containing name Keaton \
-                        ',
+                        "description": "JsonLogic query object (see examples in tool description)",
                     }
                 },
                 "required": ["query"],
@@ -792,381 +783,6 @@ class GetActiveNoteToolHandler(ToolHandler):
             ]
         else:
             return [TextContent(type="text", text=content)]
-
-
-class AppendToActiveToolHandler(ToolHandler):
-    def __init__(self):
-        super().__init__("obsidian_post_active")
-
-    def get_tool_description(self):
-        return Tool(
-            name=self.name,
-            description="Append content to the currently active note.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "Content to append to the active note",
-                    }
-                },
-                "required": ["content"],
-            },
-        )
-
-    def run_tool(
-        self, args: dict
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
-        if "content" not in args:
-            raise RuntimeError("content argument required")
-
-        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        api.append_to_active(args["content"])
-
-        return [
-            TextContent(
-                type="text", text="Successfully appended content to active note"
-            )
-        ]
-
-
-class ReplaceActiveNoteToolHandler(ToolHandler):
-    def __init__(self):
-        super().__init__("obsidian_put_active")
-
-    def get_tool_description(self):
-        return Tool(
-            name=self.name,
-            description="Replace entire content of the currently active note.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "New content for the active note",
-                    }
-                },
-                "required": ["content"],
-            },
-        )
-
-    def run_tool(
-        self, args: dict
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
-        if "content" not in args:
-            raise RuntimeError("content argument required")
-
-        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        api.replace_active_note(args["content"])
-
-        return [
-            TextContent(
-                type="text", text="Successfully replaced content of active note"
-            )
-        ]
-
-
-class PatchActiveNoteToolHandler(ToolHandler):
-    def __init__(self):
-        super().__init__("obsidian_patch_active")
-
-    def get_tool_description(self):
-        return Tool(
-            name=self.name,
-            description="Insert content into active note relative to a heading, block reference, or frontmatter field.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "operation": {
-                        "type": "string",
-                        "description": "Operation to perform (append, prepend, or replace)",
-                        "enum": ["append", "prepend", "replace"],
-                    },
-                    "target_type": {
-                        "type": "string",
-                        "description": "Type of target to patch",
-                        "enum": ["heading", "block", "frontmatter"],
-                    },
-                    "target": {
-                        "type": "string",
-                        "description": "Target identifier (heading path, block reference, or frontmatter field)",
-                    },
-                    "content": {"type": "string", "description": "Content to insert"},
-                },
-                "required": ["operation", "target_type", "target", "content"],
-            },
-        )
-
-    def run_tool(
-        self, args: dict
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
-        if not all(
-            k in args for k in ["operation", "target_type", "target", "content"]
-        ):
-            raise RuntimeError(
-                "operation, target_type, target and content arguments required"
-            )
-
-        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        api.patch_active_note(
-            args.get("operation", ""),
-            args.get("target_type", ""),
-            args.get("target", ""),
-            args.get("content", ""),
-        )
-
-        return [
-            TextContent(type="text", text="Successfully patched content in active note")
-        ]
-
-
-class DeleteActiveNoteToolHandler(ToolHandler):
-    def __init__(self):
-        super().__init__("obsidian_delete_active")
-
-    def get_tool_description(self):
-        return Tool(
-            name=self.name,
-            description="Delete the currently active note. Use with caution.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "confirm": {
-                        "type": "boolean",
-                        "description": "Confirmation to delete the active note (must be true)",
-                        "default": False,
-                    }
-                },
-                "required": ["confirm"],
-            },
-        )
-
-    def run_tool(
-        self, args: dict
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
-        if not args.get("confirm", False):
-            raise RuntimeError("confirm must be set to true to delete the active note")
-
-        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        api.delete_active_note()
-
-        return [TextContent(type="text", text="Successfully deleted active note")]
-
-
-class AppendToPeriodicToolHandler(ToolHandler):
-    def __init__(self):
-        super().__init__("obsidian_post_periodic")
-
-    def get_tool_description(self):
-        return Tool(
-            name=self.name,
-            description="Append content to the current periodic note.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "period": {
-                        "type": "string",
-                        "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
-                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"],
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Content to append to the periodic note",
-                    },
-                },
-                "required": ["period", "content"],
-            },
-        )
-
-    def run_tool(
-        self, args: dict
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
-        if "period" not in args or "content" not in args:
-            raise RuntimeError("period and content arguments required")
-
-        period = args["period"]
-        valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
-        if period not in valid_periods:
-            raise RuntimeError(
-                f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}"
-            )
-
-        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        api.append_to_periodic(period, args["content"])
-
-        return [
-            TextContent(
-                type="text", text=f"Successfully appended content to {period} note"
-            )
-        ]
-
-
-class ReplacePeriodicNoteToolHandler(ToolHandler):
-    def __init__(self):
-        super().__init__("obsidian_put_periodic")
-
-    def get_tool_description(self):
-        return Tool(
-            name=self.name,
-            description="Replace entire content of the current periodic note.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "period": {
-                        "type": "string",
-                        "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
-                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"],
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "New content for the periodic note",
-                    },
-                },
-                "required": ["period", "content"],
-            },
-        )
-
-    def run_tool(
-        self, args: dict
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
-        if "period" not in args or "content" not in args:
-            raise RuntimeError("period and content arguments required")
-
-        period = args["period"]
-        valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
-        if period not in valid_periods:
-            raise RuntimeError(
-                f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}"
-            )
-
-        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        api.replace_periodic_note(period, args["content"])
-
-        return [
-            TextContent(
-                type="text", text=f"Successfully replaced content of {period} note"
-            )
-        ]
-
-
-class PatchPeriodicNoteToolHandler(ToolHandler):
-    def __init__(self):
-        super().__init__("obsidian_patch_periodic")
-
-    def get_tool_description(self):
-        return Tool(
-            name=self.name,
-            description="Insert content into periodic note relative to a heading, block reference, or frontmatter field.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "period": {
-                        "type": "string",
-                        "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
-                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"],
-                    },
-                    "operation": {
-                        "type": "string",
-                        "description": "Operation to perform (append, prepend, or replace)",
-                        "enum": ["append", "prepend", "replace"],
-                    },
-                    "target_type": {
-                        "type": "string",
-                        "description": "Type of target to patch",
-                        "enum": ["heading", "block", "frontmatter"],
-                    },
-                    "target": {
-                        "type": "string",
-                        "description": "Target identifier (heading path, block reference, or frontmatter field)",
-                    },
-                    "content": {"type": "string", "description": "Content to insert"},
-                },
-                "required": ["period", "operation", "target_type", "target", "content"],
-            },
-        )
-
-    def run_tool(
-        self, args: dict
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
-        if not all(
-            k in args
-            for k in ["period", "operation", "target_type", "target", "content"]
-        ):
-            raise RuntimeError(
-                "period, operation, target_type, target and content arguments required"
-            )
-
-        period = args["period"]
-        valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
-        if period not in valid_periods:
-            raise RuntimeError(
-                f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}"
-            )
-
-        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        api.patch_periodic_note(
-            period,
-            args.get("operation", ""),
-            args.get("target_type", ""),
-            args.get("target", ""),
-            args.get("content", ""),
-        )
-
-        return [
-            TextContent(
-                type="text", text=f"Successfully patched content in {period} note"
-            )
-        ]
-
-
-class DeletePeriodicNoteToolHandler(ToolHandler):
-    def __init__(self):
-        super().__init__("obsidian_delete_periodic")
-
-    def get_tool_description(self):
-        return Tool(
-            name=self.name,
-            description="Delete the current periodic note. Use with caution.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "period": {
-                        "type": "string",
-                        "description": "The period type (daily, weekly, monthly, quarterly, yearly)",
-                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"],
-                    },
-                    "confirm": {
-                        "type": "boolean",
-                        "description": "Confirmation to delete the periodic note (must be true)",
-                        "default": False,
-                    },
-                },
-                "required": ["period", "confirm"],
-            },
-        )
-
-    def run_tool(
-        self, args: dict
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
-        if "period" not in args:
-            raise RuntimeError("period argument required")
-
-        if not args.get("confirm", False):
-            raise RuntimeError(
-                "confirm must be set to true to delete the periodic note"
-            )
-
-        period = args["period"]
-        valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
-        if period not in valid_periods:
-            raise RuntimeError(
-                f"Invalid period: {period}. Must be one of: {', '.join(valid_periods)}"
-            )
-
-        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
-        api.delete_periodic_note(period)
-
-        return [TextContent(type="text", text=f"Successfully deleted {period} note")]
 
 
 class ListCommandsToolHandler(ToolHandler):

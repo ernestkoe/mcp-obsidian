@@ -68,3 +68,13 @@ jobs:
         uses: python-semantic-release/publish-action@v9.21.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build package
+        if: steps.release.outputs.released == 'true'
+        run: uv build
+
+      - name: Publish to PyPI
+        if: steps.release.outputs.released == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

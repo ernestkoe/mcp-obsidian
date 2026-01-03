@@ -1,8 +1,30 @@
 # MCP server for Obsidian
 
-MCP server providing 26 tools to interact with Obsidian via the Local REST API community plugin, including active note operations, periodic notes management, and command execution.
+MCP server providing tools to interact with Obsidian via the Local REST API community plugin, including active note operations, periodic notes management, and command execution.
 
 > **Note**: This is a maintained fork of [MarkusPfundstein/mcp-obsidian](https://github.com/MarkusPfundstein/mcp-obsidian).
+
+## Roadmap to v1.0.0
+
+This fork is in active development (`v0.x.x`). The `v1.0.0` release will mark the first stable API. Expect things to be in flux. I am adding tool coverage but will attempt to streamline them to keep our context footprint as small as possible. Currently, I am just exposing REST endpoints I think might be useful as tools, but expect some of these to change.
+
+### Current Status (v0.4.x)
+- 26 tools covering file operations, active notes, periodic notes, and commands
+- Template-aware heading insertion
+- Robust path encoding for special characters and Unicode
+
+### Planned for v1.0.0
+- [ ] **Streamlined tool surface** — Reduce token footprint by consolidating convenience wrappers (e.g., `patch_active` → `get_active` + `patch_content`)
+- [ ] **Stable API contract** — Tool names, parameters, and behaviors locked for backwards compatibility
+- [ ] **Comprehensive test coverage** — All tools tested with CI
+- [ ] **Published to PyPI** — Available via `uvx mcp-obsidian-ek` with version pinning
+
+### Breaking Changes Expected
+The v1.0.0 release will likely remove convenience tools that can be accomplished with two-step workflows:
+- `obsidian_post_active`, `obsidian_put_active`, `obsidian_patch_active`, `obsidian_delete_active`
+- `obsidian_post_periodic`, `obsidian_put_periodic`, `obsidian_patch_periodic`, `obsidian_delete_periodic`
+
+These operations will still be possible using `get_active`/`get_periodic_note` followed by the corresponding file operation.
 
 <a href="https://glama.ai/mcp/servers/3wko1bhuek"><img width="380" height="200" src="https://glama.ai/mcp/servers/3wko1bhuek/badge" alt="server for Obsidian MCP server" /></a>
 
@@ -189,20 +211,21 @@ There are two ways to configure the environment with the Obsidian REST API Key.
 
 ```json
 {
-  "mcp-obsidian": {
+  "mcp-obsidian-ek": {
     "command": "uvx",
     "args": [
-      "mcp-obsidian"
+      "mcp-obsidian-ek"
     ],
     "env": {
-      "OBSIDIAN_API_KEY": "<your_api_key_here>",
-      "OBSIDIAN_HOST": "<your_obsidian_host>",
-      "OBSIDIAN_PORT": "<your_obsidian_port>"
+      "OBSIDIAN_API_KEY": "<your_api_key_here>"
     }
   }
 }
 ```
-Sometimes Claude has issues detecting the location of uv / uvx. You can use `which uvx` to find and paste the full path in above config in such cases.
+
+Note: `OBSIDIAN_HOST` (default: 127.0.0.1) and `OBSIDIAN_PORT` (default: 27124) are optional.
+
+Sometimes Claude has issues detecting the location of uvx. You can use `which uvx` to find and paste the full path in the config.
 
 2. Create a `.env` file in the working directory with the following required variables:
 
@@ -234,23 +257,21 @@ On MacOS: `~/Library/Application\ Support/Claude/claude_desktop_config.json`
 On Windows: `%APPDATA%/Claude/claude_desktop_config.json`
 
 <details>
-  <summary>Development/Unpublished Servers Configuration</summary>
-  
+  <summary>Development (from local repo)</summary>
+
 ```json
 {
   "mcpServers": {
-    "mcp-obsidian": {
+    "mcp-obsidian-ek": {
       "command": "uv",
       "args": [
         "--directory",
-        "<dir_to>/mcp-obsidian",
+        "/path/to/mcp-obsidian",
         "run",
-        "mcp-obsidian"
+        "mcp-obsidian-ek"
       ],
       "env": {
-        "OBSIDIAN_API_KEY": "<your_api_key_here>",
-        "OBSIDIAN_HOST": "<your_obsidian_host>",
-        "OBSIDIAN_PORT": "<your_obsidian_port>"
+        "OBSIDIAN_API_KEY": "<your_api_key_here>"
       }
     }
   }
@@ -259,20 +280,18 @@ On Windows: `%APPDATA%/Claude/claude_desktop_config.json`
 </details>
 
 <details>
-  <summary>Published Servers Configuration</summary>
-  
+  <summary>Published (from PyPI)</summary>
+
 ```json
 {
   "mcpServers": {
-    "mcp-obsidian": {
+    "mcp-obsidian-ek": {
       "command": "uvx",
       "args": [
-        "mcp-obsidian"
+        "mcp-obsidian-ek"
       ],
       "env": {
-        "OBSIDIAN_API_KEY": "<YOUR_OBSIDIAN_API_KEY>",
-        "OBSIDIAN_HOST": "<your_obsidian_host>",
-        "OBSIDIAN_PORT": "<your_obsidian_port>"
+        "OBSIDIAN_API_KEY": "<your_api_key_here>"
       }
     }
   }
@@ -299,7 +318,7 @@ experience, we strongly recommend using the [MCP Inspector](https://github.com/m
 You can launch the MCP Inspector via [`npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) with this command:
 
 ```bash
-npx @modelcontextprotocol/inspector uv --directory /path/to/mcp-obsidian run mcp-obsidian
+npx @modelcontextprotocol/inspector uv --directory /path/to/mcp-obsidian run mcp-obsidian-ek
 ```
 
 Upon launching, the Inspector will display a URL that you can access in your browser to begin debugging.
@@ -307,5 +326,5 @@ Upon launching, the Inspector will display a URL that you can access in your bro
 You can also watch the server logs with this command:
 
 ```bash
-tail -n 20 -f ~/Library/Logs/Claude/mcp-server-mcp-obsidian.log
+tail -n 20 -f ~/Library/Logs/Claude/mcp-server-mcp-obsidian-ek.log
 ```
