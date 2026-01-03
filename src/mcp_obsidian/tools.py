@@ -12,6 +12,7 @@ from . import obsidian
 
 api_key = os.getenv("OBSIDIAN_API_KEY", "")
 obsidian_host = os.getenv("OBSIDIAN_HOST", "127.0.0.1")
+read_only_mode = int(os.getenv("OBSIDIAN_READONLY", "0")) == 1
 
 if api_key == "":
     raise ValueError(
