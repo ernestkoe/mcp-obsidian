@@ -1,6 +1,6 @@
 [project]
 name = "mcp-obsidian-ek"
-version = "0.6.0"
+version = "0.6.1"
 description = "MCP server to interact with Obsidian via the Local REST API plugin"
 readme = "README.md"
 requires-python = ">=3.11"

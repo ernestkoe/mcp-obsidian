@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.1 (2026-01-03)
+
+### Bug Fixes
+
+- Disable OIDC attestations for PyPI publish
+  ([`9a81efb`](https://github.com/ernestkoe/mcp-obsidian-ek/commit/9a81efba27585ef5c3b0e3ae61f224b16b8015ce))
+
+
 ## v0.6.0 (2026-01-03)
 
 ### Features
