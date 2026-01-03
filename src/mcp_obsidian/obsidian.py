@@ -1,3 +1,4 @@
+import re
 import requests
 import urllib.parse
 from urllib.parse import quote, unquote
@@ -221,7 +222,15 @@ class Obsidian:
         return self._safe_call(call_fn)
 
     def patch_content(
-        self, filepath: str, operation: str, target_type: str, target: str, content: str
+        self,
+        filepath: str,
+        operation: str,
+        target_type: str,
+        target: str,
+        content: str,
+        create_heading_if_missing: bool = True,
+        template_path: str | None = None,
+        use_template: bool = True,
     ) -> Any:
         encoded_path = self._encode_path(filepath)
         url = f"{self.get_base_url()}/vault/{encoded_path}"
@@ -233,7 +242,7 @@ class Obsidian:
             "Target": urllib.parse.quote(target),
         }
 
-        def call_fn():
+        try:
             response = requests.patch(
                 url,
                 headers=headers,
@@ -243,8 +252,288 @@ class Obsidian:
             )
             response.raise_for_status()
             return None
+        except requests.HTTPError as e:
+            # Check if this is an invalid-target error (heading doesn't exist)
+            if (
+                create_heading_if_missing
+                and target_type == "heading"
+                and e.response is not None
+                and e.response.status_code == 400
+            ):
+                try:
+                    error_data = e.response.json()
+                    if error_data.get("errorCode") == 40080:
+                        return self._create_heading_and_append(
+                            filepath,
+                            target,
+                            content,
+                            template_path=template_path,
+                            use_template=use_template,
+                        )
+                except (ValueError, KeyError):
+                    pass
+            # Re-raise if we can't handle it
+            raise Exception(self._format_http_error(e))
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Request failed: {str(e)}")
 
-        return self._safe_call(call_fn)
+    def _format_http_error(self, e: requests.HTTPError) -> str:
+        """Format an HTTP error into a readable message."""
+        if e.response is not None and e.response.content:
+            try:
+                error_data = e.response.json()
+                code = error_data.get("errorCode", -1)
+                message = error_data.get("message", "<unknown>")
+                return f"Error {code}: {message}"
+            except ValueError:
+                raw_text = e.response.text.strip()
+                return f"HTTP {e.response.status_code}: {raw_text or 'Unknown error'}"
+        return f"HTTP error: {str(e)}"
+
+    def _parse_frontmatter(self, content: str) -> dict[str, Any]:
+        """Parse YAML frontmatter from markdown content.
+
+        Args:
+            content: Markdown content that may contain frontmatter
+
+        Returns:
+            Dictionary of frontmatter fields, empty dict if none found
+        """
+        if not content.startswith("---"):
+            return {}
+
+        # Find the closing ---
+        end_match = re.search(r"\n---\s*\n", content[3:])
+        if not end_match:
+            return {}
+
+        frontmatter_text = content[4 : end_match.start() + 3]
+        result: dict[str, Any] = {}
+
+        # Simple YAML parsing for key: value pairs
+        for line in frontmatter_text.split("\n"):
+            line = line.strip()
+            if ":" in line:
+                key, _, value = line.partition(":")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and value:
+                    result[key] = value
+
+        return result
+
+    def _get_template_for_file(self, filepath: str, content: str) -> str | None:
+        """Get template path from frontmatter or folder convention.
+
+        Args:
+            filepath: Path to the file
+            content: File content (to avoid re-reading)
+
+        Returns:
+            Template path if found, None otherwise
+        """
+        # 1. Check frontmatter for 'template:' field
+        frontmatter = self._parse_frontmatter(content)
+        if "template" in frontmatter:
+            template_path = frontmatter["template"]
+            # Handle relative paths - assume Templates/ folder if not specified
+            if not template_path.startswith("Templates/"):
+                template_path = f"Templates/{template_path}"
+            return template_path
+
+        # 2. Folder convention: Daily Notes/*.md -> Templates/Daily Notes.md
+        if "/" in filepath:
+            folder = filepath.rsplit("/", 1)[0]
+            convention_template = f"Templates/{folder}.md"
+            # Check if template exists by trying to read it
+            try:
+                self.get_file_contents(convention_template)
+                return convention_template
+            except Exception:
+                pass
+
+        return None
+
+    def _parse_heading_structure(self, content: str) -> list[tuple[int, str, int]]:
+        """Parse markdown to extract heading hierarchy with line positions.
+
+        Args:
+            content: Markdown content
+
+        Returns:
+            List of (level, heading_text, line_number) tuples
+        """
+        headings: list[tuple[int, str, int]] = []
+        lines = content.split("\n")
+
+        for i, line in enumerate(lines):
+            match = re.match(r"^(#{1,6})\s+(.+)$", line)
+            if match:
+                level = len(match.group(1))
+                text = match.group(2).strip()
+                headings.append((level, text, i))
+
+        return headings
+
+    def _find_insertion_point(
+        self,
+        current_headings: list[tuple[int, str, int]],
+        template_headings: list[tuple[int, str, int]],
+        target_heading: str,
+        target_level: int,
+    ) -> int | None:
+        """Find line number where heading should be inserted based on template order.
+
+        Args:
+            current_headings: Headings in the current file
+            template_headings: Headings from the template
+            target_heading: The heading text to insert
+            target_level: The heading level (e.g., 2 for ##)
+
+        Returns:
+            Line number for insertion, or None if should append to end
+        """
+        # Find target heading position in template
+        template_index = None
+        for i, (level, text, _) in enumerate(template_headings):
+            if text == target_heading and level == target_level:
+                template_index = i
+                break
+
+        if template_index is None:
+            # Heading not in template, append to end
+            return None
+
+        # Find the heading that should come AFTER our target in the template
+        next_template_headings = []
+        for i in range(template_index + 1, len(template_headings)):
+            level, text, _ = template_headings[i]
+            # Only consider same or higher level headings as boundaries
+            if level <= target_level:
+                next_template_headings.append((level, text))
+                break
+
+        # Find where any of those "next" headings appear in current content
+        for level, text, line_num in current_headings:
+            for next_level, next_text in next_template_headings:
+                if text == next_text and level == next_level:
+                    # Insert before this heading
+                    return line_num
+
+        # Also check if there's a heading BEFORE our target in template
+        # and find where that section ends
+        for i in range(template_index - 1, -1, -1):
+            prev_level, prev_text, _ = template_headings[i]
+            if prev_level <= target_level:
+                # Find this heading in current content
+                for level, text, line_num in current_headings:
+                    if text == prev_text and level == prev_level:
+                        # Find the end of this section (next same-level heading)
+                        for lvl, txt, ln in current_headings:
+                            if ln > line_num and lvl <= level:
+                                return ln
+                        # No next heading, will append
+                        return None
+                break
+
+        return None
+
+    def _insert_heading_at_position(
+        self,
+        filepath: str,
+        content: str,
+        heading: str,
+        heading_content: str,
+        line_number: int,
+        heading_level: int,
+    ) -> Any:
+        """Insert a heading at a specific line position.
+
+        Args:
+            filepath: Path to the file
+            content: Current file content
+            heading: Heading text
+            heading_content: Content to add under the heading
+            line_number: Line number to insert at
+            heading_level: Level of heading (2 for ##, 3 for ###, etc.)
+
+        Returns:
+            Result of put_content
+        """
+        lines = content.split("\n")
+        heading_prefix = "#" * heading_level
+        new_section = f"\n{heading_prefix} {heading}{heading_content}\n"
+
+        # Insert before the specified line
+        lines.insert(line_number, new_section)
+        new_content = "\n".join(lines)
+
+        return self.put_content(filepath, new_content)
+
+    def _create_heading_and_append(
+        self,
+        filepath: str,
+        heading: str,
+        content: str,
+        template_path: str | None = None,
+        use_template: bool = True,
+    ) -> Any:
+        """Create a missing heading and insert content, using template for positioning.
+
+        Args:
+            filepath: Path to the file
+            heading: The heading text (without # prefix), supports :: for nesting
+            content: Content to add under the heading
+            template_path: Optional explicit template path
+            use_template: Whether to use template for heading position (default: True)
+        """
+        # Determine heading level from the target (e.g., "Todos" -> "## Todos")
+        # Default to h2 for top-level headings
+        heading_parts = heading.split("::")
+        heading_level = len(heading_parts) + 1  # h2 for top-level, h3 for nested, etc.
+        final_heading = heading_parts[-1]  # Use the last part as the heading text
+
+        # Read current file contents
+        current_content = self.get_file_contents(filepath)
+
+        # Try to find template and use it for positioning
+        if use_template:
+            template = template_path or self._get_template_for_file(
+                filepath, current_content
+            )
+
+            if template:
+                try:
+                    template_content = self.get_file_contents(template)
+                    template_headings = self._parse_heading_structure(template_content)
+                    current_headings = self._parse_heading_structure(current_content)
+
+                    insertion_point = self._find_insertion_point(
+                        current_headings,
+                        template_headings,
+                        final_heading,
+                        heading_level,
+                    )
+
+                    if insertion_point is not None:
+                        return self._insert_heading_at_position(
+                            filepath,
+                            current_content,
+                            final_heading,
+                            content,
+                            insertion_point,
+                            heading_level,
+                        )
+                except Exception:
+                    # Template not found or error reading it, fall through to append
+                    pass
+
+        # Fallback: append to end
+        heading_prefix = "#" * heading_level
+        new_section = f"\n\n{heading_prefix} {final_heading}{content}"
+        new_content = current_content.rstrip() + new_section
+
+        return self.put_content(filepath, new_content)
 
     def put_content(self, filepath: str, content: str) -> Any:
         encoded_path = self._encode_path(filepath)

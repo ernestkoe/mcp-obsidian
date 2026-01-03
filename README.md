@@ -29,7 +29,7 @@ The server implements 26 tools to interact with Obsidian, organized by functiona
 - obsidian_batch_get_file_contents: Return the contents of multiple files in your vault, concatenated with headers
 - obsidian_simple_search: Search for documents matching a specified text query across all files in the vault
 - obsidian_complex_search: Complex search for documents using JsonLogic queries with glob and regexp support
-- obsidian_patch_content: Insert content into an existing note relative to a heading, block reference, or frontmatter field
+- obsidian_patch_content: Insert content into an existing note relative to a heading, block reference, or frontmatter field. Automatically creates missing headings with template-aware positioning
 - obsidian_append_content: Append content to a new or existing file in the vault
 - obsidian_put_content: Create a new file or update the content of an existing file in your vault
 - obsidian_delete_file: Delete a file or directory from your vault
@@ -117,6 +117,66 @@ obsidian_append_content("Área/configuração.md", "New content")
 obsidian_list_files_in_dir("Special (Folder) & More")
 obsidian_patch_content("Research #1/data + analysis.md", ...)
 obsidian_list_files_in_dir("Reports/2024/")
+```
+
+## Template-Aware Heading Insertion
+
+When using `obsidian_patch_content` (or similar patch operations) to insert content under a heading that doesn't exist, the server automatically creates the heading. By default, it uses template-aware positioning to maintain consistent document structure.
+
+### How It Works
+
+1. **Auto-create missing headings**: When you patch content to a heading that doesn't exist, the heading is created automatically (enabled by default, can be disabled with `create_heading_if_missing: false`)
+
+2. **Template detection**: The server looks for a template to determine where the new heading should be inserted:
+   - First checks the note's frontmatter for a `template:` field
+   - Falls back to folder convention: `Daily Notes/*.md` → `Templates/Daily Notes.md`
+
+3. **Position-aware insertion**: If a template is found, the new heading is inserted in the correct position based on the template's heading order, rather than appended to the end
+
+### Example
+
+If your template (`Templates/Daily Notes.md`) has:
+```markdown
+## Todos
+## Notes
+## Journal
+```
+
+And your daily note only has `## Todos` and `## Journal`, patching content to `Notes` will insert it between them—not at the end.
+
+### Frontmatter Template Reference
+
+Add a `template:` field to your note's frontmatter to specify which template defines the heading structure:
+
+```yaml
+---
+template: Daily Note.md
+---
+```
+
+The server will look for `Templates/Daily Note.md` (or the full path if provided).
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `create_heading_if_missing` | `true` | Create the heading if it doesn't exist |
+| `template_path` | auto-detect | Explicit path to template file |
+| `use_template` | `true` | Use template for heading positioning |
+
+### Disabling Template Positioning
+
+To always append new headings to the end (original behavior), set `use_template: false`:
+
+```python
+obsidian_patch_content(
+    filepath="Daily Notes/2024-01-15.md",
+    operation="append",
+    target_type="heading",
+    target="New Section",
+    content="Content here",
+    use_template=False  # Always append to end
+)
 ```
 
 ## Configuration
