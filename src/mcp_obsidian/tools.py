@@ -22,7 +22,6 @@ if api_key == "":
 TOOL_LIST_FILES_IN_VAULT = "obsidian_list_files_in_vault"
 TOOL_LIST_FILES_IN_DIR = "obsidian_list_files_in_dir"
 
-
 class ToolHandler:
     def __init__(self, tool_name: str):
         self.name = tool_name
@@ -190,7 +189,7 @@ class GetFileContentsByNameToolHandler(ToolHandler):
     def get_tool_description(self):
         return Tool(
             name=self.name,
-            description="Return the contents of a single file in your vault by the note-name. Use this to links such as [[Note Name]] or [[Note Name|My Note Alias]].",
+            description="Return the contents of a single file in your vault by the note-name. Use this to links to 'Note Name.md' such as [[Note Name]] or [[Note Name|My Note Alias]] or [[Note Name#some-note-section-heading]] or [[Note Name^some-block-reference]]. The note name is always the part before the '|' or ']]' or '#' or '^'.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -825,6 +824,51 @@ class DataviewQueryToolHandler(ToolHandler):
             )
         ]
 
+class GetBacklinksToNoteToolHandler(ToolHandler):
+    def __init__(self):
+        super().__init__("obsidian_backlinks_to_note")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Returns the names of notes linking back to the given note. Use this to find where the given note is linked to in the vault (via [[Note Name]] etc.) and to understand it's usage and context",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the note for which to return the backlinks. 'name' should be without the '.md' and will be handled case-sensitive.",
+                    }
+                },
+                "required": ["name"],
+            },
+        )
+
+    def run_tool(
+        self, args: dict
+    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        if "name" not in args:
+            raise RuntimeError("name argument missing")
+
+        name = args["name"]
+        if not isinstance(name, str):
+            raise RuntimeError("name must be a string")
+
+        # THIS IS A HACK!!!! !!!!!! SQL INJECTION VULNERABILITY HERE !!!!!!!!
+        dataview_query = "table file.inlinks where file.name = \"" + name + "\""
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        results = api.dataview_query(dataview_query)
+
+        if len(results) != 0:
+            # cleanup result, only return path and not other unnecessary info
+            inlinks = [ link["path"] for link in results[0]["result"]["file.inlinks"] ]
+            results = inlinks
+
+        return [
+            TextContent(
+                type="text", text=json.dumps(results, indent=2, ensure_ascii=False)
+            )
+        ]
 
 class GetActiveNoteToolHandler(ToolHandler):
     def __init__(self):

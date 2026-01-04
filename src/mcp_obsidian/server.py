@@ -67,6 +67,7 @@ add_tool_handler(tools.PeriodicNotesToolHandler())
 add_tool_handler(tools.RecentPeriodicNotesToolHandler())
 add_tool_handler(tools.RecentChangesToolHandler())
 add_tool_handler(tools.DataviewQueryToolHandler())
+add_tool_handler(tools.GetBacklinksToNoteToolHandler())
 add_tool_handler(tools.GetActiveNoteToolHandler())
 if not tools.read_only_mode:
     add_tool_handler(tools.AppendToActiveToolHandler())
