@@ -116,7 +116,7 @@ class QueryFilesRecursivelyToolHandler(ToolHandler):
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The search term to query for in the file names",
+                        "description": "The search term to query for in the file names (case-insensitive)",
                     },
                 },
                 "required": ["query"],
@@ -190,13 +190,13 @@ class GetFileContentsByNameToolHandler(ToolHandler):
     def get_tool_description(self):
         return Tool(
             name=self.name,
-            description="Return the contents of a single file in your vault by the note-name. USe this to links such as [[Note Name]] or [[Note Name|My Note Alias]].",
+            description="Return the contents of a single file in your vault by the note-name. Use this to links such as [[Note Name]] or [[Note Name|My Note Alias]].",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "Name of the file to open (without the '.md')"
+                        "description": "Name of the file to open (without the '.md'; case-sensitive)"
                     },
                 },
                 "required": ["name"],

@@ -164,7 +164,7 @@ class Obsidian:
                 rec_files = self.list_all_files_in_vault_recursively(directory + file_or_dir, query)
                 directory_name_prepended = map(lambda f: file_or_dir + f, rec_files)
                 files.extend( directory_name_prepended )
-            elif query in file_or_dir:
+            elif query.lower() in file_or_dir.lower(): # case-insensitive match
                 # add normal file satisfying query to files list
                 files.append(file_or_dir)
 
