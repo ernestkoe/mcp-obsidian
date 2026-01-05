@@ -231,7 +231,7 @@ class Obsidian:
 
         return "".join(result)
 
-    def search(self, query: str, context_length: int = 100, limit: int = 100) -> Any:
+    def search(self, query: str, context_length: int = 100, limit: int = 1000) -> Any:
         url = f"{self.get_base_url()}/search/simple/"
         params = {"query": query, "contextLength": context_length, "limit": limit}
 
