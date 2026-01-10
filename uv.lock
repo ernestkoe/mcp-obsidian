@@ -549,8 +549,8 @@ wheels = [
 ]
 
 [[package]]
-name = "mcp-obsidian"
-version = "0.4.0"
+name = "mcp-obsidian-ek"
+version = "0.6.4"
 source = { editable = "." }
 dependencies = [
     { name = "mcp" },

@@ -61,3 +61,21 @@ Optional (with defaults):
 - `OBSIDIAN_HOST` (default: 127.0.0.1)
 - `OBSIDIAN_PORT` (default: 27124)
 - `OBSIDIAN_PROTOCOL` (default: https)
+
+## Architectural Decisions
+
+### No Community Plugin Dependencies
+
+**Rule**: Only rely on core Local REST API endpoints. Do not add features that require additional Obsidian community plugins.
+
+**Rationale**:
+- Reduces friction for users (only one plugin to install)
+- Avoids breaking when community plugins change APIs
+- Keeps the MCP server portable and predictable
+
+**Current violations to address**:
+1. `obsidian_dataview_query` - requires Dataview plugin → deprecate/remove
+2. `obsidian_get_recent_changes` - requires Dataview plugin → reimplement using file metadata
+3. Periodic Notes (weekly/monthly/quarterly/yearly) - requires Periodic Notes plugin → implement via folder conventions or file patterns
+
+**Allowed**: Core Daily Notes (built into Obsidian) works without additional plugins.

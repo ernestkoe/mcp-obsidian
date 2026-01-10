@@ -190,10 +190,17 @@ class TestPatchContentToolHandler:
     """Tests for the patch content tool."""
 
     def test_run_tool(self, mock_responses, base_url):
+        # New smarter patch uses GET+PUT for heading operations
         mock_responses.add(
-            responses.PATCH,
+            responses.GET,
             f"{base_url}/vault/note.md",
+            body="# Section 1\n\nExisting content\n",
             status=200,
+        )
+        mock_responses.add(
+            responses.PUT,
+            f"{base_url}/vault/note.md",
+            status=204,
         )
 
         handler = tools.PatchContentToolHandler()

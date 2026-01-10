@@ -61,10 +61,12 @@ Add this server to your MCP client configuration. Examples for common clients:
 | Obsidian Plugin | Required | Notes |
 |-----------------|----------|-------|
 | [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) | Yes | v3.0+ recommended |
-| [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes) | Optional | For weekly/monthly/quarterly/yearly notes |
-| [Dataview](https://github.com/blacksmithgu/obsidian-dataview) | Optional | For `get_recent_changes` tool |
+| [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes) | Optional | For weekly/monthly/quarterly/yearly (being removed in v1.0) |
+| [Dataview](https://github.com/blacksmithgu/obsidian-dataview) | Optional | For `get_recent_changes` tool (being removed in v1.0) |
 
 The core Daily Notes plugin (built into Obsidian) is sufficient for daily periodic notes.
+
+> **v1.0 Goal**: Zero community plugin dependencies beyond Local REST API. All features will work with core Obsidian only.
 
 ## Tools
 
@@ -168,6 +170,8 @@ This fork is in active development (`v0.x.x`). The API may change before v1.0.0.
 - [x] Published to PyPI
 - [ ] Stable API contract
 - [ ] Comprehensive test coverage
+- [ ] **No community plugin dependencies** - remove Dataview requirement, use file metadata for recent changes
+- [ ] Periodic notes via folder conventions (no Periodic Notes plugin required)
 
 ### Breaking Changes from v0.4.x
 These convenience tools were removed (use `get_active`/`get_periodic_note` + file operations instead):

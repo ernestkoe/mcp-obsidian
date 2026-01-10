@@ -7,6 +7,12 @@ import os
 from typing import Any
 
 
+class HeadingNotFoundError(Exception):
+    """Raised when a target heading is not found in a file."""
+
+    pass
+
+
 class Obsidian:
     def __init__(
         self,
@@ -232,6 +238,25 @@ class Obsidian:
         template_path: str | None = None,
         use_template: bool = True,
     ) -> Any:
+        # For heading operations, use the smarter read-modify-write approach
+        # This bypasses the buggy REST API PATCH endpoint
+        if target_type == "heading":
+            try:
+                return self._patch_heading_content(filepath, operation, target, content)
+            except HeadingNotFoundError:
+                # Heading doesn't exist - create it if allowed
+                if create_heading_if_missing:
+                    return self._create_heading_and_append(
+                        filepath,
+                        target,
+                        content,
+                        template_path=template_path,
+                        use_template=use_template,
+                    )
+                else:
+                    raise Exception(f"Error 40080: Heading '{target}' not found")
+
+        # For block and frontmatter operations, use the REST API PATCH endpoint
         encoded_path = self._encode_path(filepath)
         url = f"{self.get_base_url()}/vault/{encoded_path}"
 
@@ -253,26 +278,6 @@ class Obsidian:
             response.raise_for_status()
             return None
         except requests.HTTPError as e:
-            # Check if this is an invalid-target error (heading doesn't exist)
-            if (
-                create_heading_if_missing
-                and target_type == "heading"
-                and e.response is not None
-                and e.response.status_code == 400
-            ):
-                try:
-                    error_data = e.response.json()
-                    if error_data.get("errorCode") == 40080:
-                        return self._create_heading_and_append(
-                            filepath,
-                            target,
-                            content,
-                            template_path=template_path,
-                            use_template=use_template,
-                        )
-                except (ValueError, KeyError):
-                    pass
-            # Re-raise if we can't handle it
             raise Exception(self._format_http_error(e))
         except requests.exceptions.RequestException as e:
             raise Exception(f"Request failed: {str(e)}")
@@ -437,6 +442,175 @@ class Obsidian:
                 break
 
         return None
+
+    def _find_heading_boundary(
+        self,
+        lines: list[str],
+        headings: list[tuple[int, str, int]],
+        target_line: int,
+        target_level: int,
+    ) -> int:
+        """Find the line number where a heading's content ends.
+
+        The boundary is the line before the next heading at the same or higher level,
+        or the end of the file.
+
+        Args:
+            lines: All lines in the file
+            headings: Parsed heading structure (level, text, line_num)
+            target_line: Line number of the target heading
+            target_level: Level of the target heading (e.g., 2 for ##)
+
+        Returns:
+            Line number where content should be inserted (for append) or
+            where the section ends
+        """
+        for level, _, line_num in headings:
+            if line_num > target_line and level <= target_level:
+                # Found next same-level or higher heading
+                return line_num
+        # No boundary found - section extends to end of file
+        return len(lines)
+
+    def _find_heading_in_structure(
+        self,
+        headings: list[tuple[int, str, int]],
+        target: str,
+    ) -> tuple[int, int, int] | None:
+        """Find a heading in the parsed structure.
+
+        Supports nested syntax like "Parent::Child" for finding subheadings.
+
+        Args:
+            headings: Parsed heading structure (level, text, line_num)
+            target: Heading text to find, or "Parent::Child" for nested
+
+        Returns:
+            Tuple of (level, text, line_num) or None if not found
+        """
+        parts = target.split("::")
+
+        if len(parts) == 1:
+            # Simple heading - find first match
+            for level, text, line_num in headings:
+                if text == target:
+                    return (level, text, line_num)
+            return None
+
+        # Nested heading - find parent first, then child within parent's scope
+        parent_target = parts[0]
+        child_target = parts[-1]
+
+        parent = None
+        for level, text, line_num in headings:
+            if text == parent_target:
+                parent = (level, text, line_num)
+                break
+
+        if parent is None:
+            return None
+
+        parent_level, _, parent_line = parent
+
+        # Find child within parent's scope
+        for level, text, line_num in headings:
+            if line_num <= parent_line:
+                continue
+            # Stop if we hit a heading at parent's level or higher
+            if level <= parent_level:
+                break
+            if text == child_target:
+                return (level, text, line_num)
+
+        return None
+
+    def _patch_heading_content(
+        self,
+        filepath: str,
+        operation: str,
+        target: str,
+        content: str,
+    ) -> Any:
+        """Patch content at a heading using read-modify-write pattern.
+
+        This bypasses the REST API PATCH endpoint which has known bugs with
+        heading targeting. Instead, we read the file, parse the structure,
+        modify it, and write it back.
+
+        Args:
+            filepath: Path to the file
+            operation: "append", "prepend", or "replace"
+            target: Heading text (e.g., "Todos" or "Notes::Subsection")
+            content: Content to insert
+
+        Returns:
+            None on success
+
+        Raises:
+            Exception: If heading is not found (triggers fallback to create)
+        """
+        # Read current content
+        current_content = self.get_file_contents(filepath)
+        lines = current_content.split("\n")
+
+        # Parse heading structure
+        headings = self._parse_heading_structure(current_content)
+
+        # Find target heading
+        found = self._find_heading_in_structure(headings, target)
+
+        if found is None:
+            # Heading not found - raise exception to trigger fallback
+            raise HeadingNotFoundError(f"Heading '{target}' not found in {filepath}")
+
+        target_level, _, target_line = found
+
+        # Find boundary (where this heading's content ends)
+        boundary_line = self._find_heading_boundary(
+            lines, headings, target_line, target_level
+        )
+
+        # Perform the operation
+        if operation == "append":
+            # Insert content just before the boundary
+            # Find the last non-empty line before boundary to insert after
+            insert_line = boundary_line
+
+            # Ensure content starts with newline if needed
+            if not content.startswith("\n"):
+                content = "\n" + content
+
+            lines.insert(insert_line, content.rstrip("\n"))
+
+        elif operation == "prepend":
+            # Insert content immediately after the heading line
+            insert_line = target_line + 1
+
+            # Ensure content ends with newline
+            if not content.endswith("\n"):
+                content = content + "\n"
+
+            lines.insert(insert_line, content.strip("\n"))
+
+        elif operation == "replace":
+            # Replace everything between heading and boundary
+            # Keep the heading line, replace lines after it up to boundary
+            new_lines = lines[: target_line + 1]
+
+            # Add the new content
+            content_lines = content.strip("\n").split("\n")
+            new_lines.extend(content_lines)
+
+            # Add back everything from boundary onwards
+            new_lines.extend(lines[boundary_line:])
+            lines = new_lines
+
+        else:
+            raise ValueError(f"Unknown operation: {operation}")
+
+        # Write back
+        new_content = "\n".join(lines)
+        return self.put_content(filepath, new_content)
 
     def _insert_heading_at_position(
         self,
