@@ -62,6 +62,25 @@ Optional (with defaults):
 - `OBSIDIAN_PORT` (default: 27124)
 - `OBSIDIAN_PROTOCOL` (default: https)
 
+## Feature Development Process
+
+Follow TDD (Test-Driven Development) for new features:
+
+1. **Branch** - `git checkout -b feature/short-name`
+2. **PRD** - Write `docs/PRD-feature-name.md` documenting:
+   - Problem statement
+   - Proposed solution
+   - Test cases
+3. **Tests** - Write failing tests based on PRD test cases
+4. **Implement** - Write code until tests pass
+5. **Verify** - `uv run pytest` (all tests green)
+6. **Commit** - Descriptive commit message
+7. **PR** - `gh pr create`
+8. **Validate** - Test against real vault (optional but recommended)
+9. **Merge** - `gh pr merge --squash --delete-branch`
+
+PRDs live in `docs/` and serve as documentation for why changes were made.
+
 ## Architectural Decisions
 
 ### No Community Plugin Dependencies
