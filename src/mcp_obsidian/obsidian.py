@@ -153,6 +153,29 @@ class Obsidian:
 
         return self._safe_call(call_fn)
 
+    def query_files_recursively(self, query: str) -> Any:
+        return self.list_all_files_in_vault_recursively(".", query)
+
+    # walks though all directories in the vault recursively and returns a list of all filepaths containing the query term
+    def list_all_files_in_vault_recursively(self, directory: str, query: str) -> Any:
+        if not directory.endswith("/"):
+            directory += "/"
+
+        files = []
+        directory_listing = self.list_files_in_dir(directory)
+
+        for file_or_dir in directory_listing:
+            if file_or_dir.endswith("/"):
+                # recursively collect from directory
+                rec_files = self.list_all_files_in_vault_recursively(directory + file_or_dir, query)
+                directory_name_prepended = map(lambda f: file_or_dir + f, rec_files)
+                files.extend( directory_name_prepended )
+            elif query.lower() in file_or_dir.lower(): # case-insensitive match
+                # add normal file satisfying query to files list
+                files.append(file_or_dir)
+
+        return files
+
     def get_file_contents(self, filepath: str) -> Any:
         encoded_path = self._encode_path(filepath)
         url = f"{self.get_base_url()}/vault/{encoded_path}"
@@ -169,6 +192,27 @@ class Obsidian:
             return response.text
 
         return self._safe_call(call_fn)
+
+    def get_file_contents_by_name(self, name: str) -> Any:
+        if "/" in name:
+            name = name.split("/")[-1] # remove path-parts. Agents may include this by mistake, but we can be friendly here
+
+        files = self.list_all_files_in_vault_recursively(".", name)
+
+        # file_name_in_file_path_is_name("some/path/"+name+".md") => true
+        # file_name_in_file_path_is_name(name+".md") => true
+        # otherwise false
+        def file_name_in_file_path_is_name(f):
+            if "/" in f:
+                f = f.split("/")[-1] # extract filename, if filepath contains directories
+            return f == name + ".md"
+        
+        files = list(filter(file_name_in_file_path_is_name, files))
+
+        if len(files) == 0:
+            raise Exception("No file with name '" + name + "' found")
+        else:
+            return self.get_file_contents(files[0])
 
     def get_batch_file_contents(self, filepaths: list[str]) -> str:
         """Get contents of multiple files and concatenate them with headers.
@@ -193,7 +237,7 @@ class Obsidian:
 
         return "".join(result)
 
-    def search(self, query: str, context_length: int = 100, limit: int = 100) -> Any:
+    def search(self, query: str, context_length: int = 100, limit: int = 1000) -> Any:
         url = f"{self.get_base_url()}/search/simple/"
         params = {"query": query, "contextLength": context_length, "limit": limit}
 

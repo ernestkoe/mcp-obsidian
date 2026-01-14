@@ -49,21 +49,45 @@ def get_tool_handler(name: str) -> tools.ToolHandler | None:
 
 add_tool_handler(tools.ListFilesInDirToolHandler())
 add_tool_handler(tools.ListFilesInVaultToolHandler())
+add_tool_handler(tools.QueryFilesRecursivelyToolHandler())
 add_tool_handler(tools.GetFileContentsToolHandler())
+add_tool_handler(tools.GetFileContentsByNameToolHandler())
 add_tool_handler(tools.SearchToolHandler())
-add_tool_handler(tools.PatchContentToolHandler())
-add_tool_handler(tools.AppendContentToolHandler())
-add_tool_handler(tools.PutContentToolHandler())
-add_tool_handler(tools.DeleteFileToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.PatchContentToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.AppendContentToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.PutContentToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.DeleteFileToolHandler())
 add_tool_handler(tools.ComplexSearchToolHandler())
 add_tool_handler(tools.BatchGetFileContentsToolHandler())
 add_tool_handler(tools.PeriodicNotesToolHandler())
 add_tool_handler(tools.RecentPeriodicNotesToolHandler())
 add_tool_handler(tools.RecentChangesToolHandler())
 add_tool_handler(tools.DataviewQueryToolHandler())
+add_tool_handler(tools.GetBacklinksToNoteToolHandler())
 add_tool_handler(tools.GetActiveNoteToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.AppendToActiveToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.ReplaceActiveNoteToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.PatchActiveNoteToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.DeleteActiveNoteToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.AppendToPeriodicToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.ReplacePeriodicNoteToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.PatchPeriodicNoteToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.DeletePeriodicNoteToolHandler())
 add_tool_handler(tools.ListCommandsToolHandler())
-add_tool_handler(tools.ExecuteCommandToolHandler())
+if not tools.read_only_mode:
+    add_tool_handler(tools.ExecuteCommandToolHandler())
 add_tool_handler(tools.OpenFileToolHandler())
 
 
